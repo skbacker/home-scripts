@@ -1,0 +1,6 @@
+let g:netrw_dirhistmax  =10
+let g:netrw_dirhist_cnt =4
+let g:netrw_dirhist_1='/usr/home/skbacker/.vim/tibero'
+let g:netrw_dirhist_2='/usr/home/skbacker/.vim/tibero/vim_lib'
+let g:netrw_dirhist_3='/usr/home/skbacker/repo/bsdp/common'
+let g:netrw_dirhist_4='/usr/home/skbacker/repo/bsdp/dlls'

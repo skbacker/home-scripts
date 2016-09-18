@@ -1,0 +1,304 @@
+###############################################################################
+# 설정:
+#
+# 1) .bashrc의 마지막에 다음 추가
+#    if [ -f ~/.bashrc_skbacker ]; then
+#        . ~/.bashrc_skbacker
+#    fi
+#
+###############################################################################
+
+###############################################################################
+# BASE
+
+# <utility>
+alias ls='ls --color=tty'
+alias rmswp='find . -name *.swp -o -name *.swo | xargs rm'
+alias vip='vi $HOME/.bash_profile'
+alias vir='vi $HOME/.bashrc_skbacker'
+alias synctime='/usr/sbin/ntpdate time.bora.net'
+ulimit -c unlimited
+#set -o vi
+#stty erase ^H
+
+# <emacs>
+alias emacs='emacs -nw'
+
+# <vim>
+alias vi='vim'
+alias vivimrc='vi $HOME/.vimrc'
+alias vimymain='vi $HOME/.vim/my_main.vim'
+alias vimy_main='vi $HOME/.vim/my_main_head.vim'
+alias vimy_key='vi $HOME/.vim/my_key.vim'
+alias cdvim='cd $HOME/.vim'
+alias src='source $HOME/.bashrc'
+alias fin='find . -name'
+alias cdvim='cd $HOME/.vim'
+
+###############################################################################
+# Utility
+mktags() {
+    rm -rf TAGS tags cscope.*
+    find . -name "*.[chSsly]" -o -name "*.cpp" -o -name "*.cc" -a -type f > cscope.files
+    cscope -b
+    # for emacs
+    xargs ctags -e --c-kinds=+x < cscope.files
+    # for vim
+    ctags -R *
+#    ctags -R --c-kinds=+x *
+}
+
+# ctags
+# --c-kinds 옵션에 대해서는 exctags --list-kinds 를 실행하라.
+mktags() {
+    rm -rf TAGS tags cscope.*
+    find . -type f -print | grep -E '\.(c(pp)?|h(pp)?|[Ssly]|java)$' > cscope.files
+    cscope -b
+    xargs ctags --links=no -e < cscope.files
+    # cscope.files 제약없이 모든 파일에 대해 ctagging
+    ctags --links=no -R *
+}
+
+find_and_edit_utf8_file () 
+{ 
+    gedit `file * | grep UTF | awk '{print $1}' | sed s/://`
+}
+
+# 예) EUC-KR을 UTF-8로 변환하기
+#     convert_charset ISO-8859-1 UTF-8 from_file to_file
+convert_chrset() {
+    iconv -f $1 -t $2 $3 > $4
+}
+
+# $1디렉터리(하위 디렉터리 포함)에서 *.[ch]에 존재하는 $2를 $3로 교체.
+# e.g. replace_all /home whtier whiter
+replace_all () 
+{ 
+    find $1 -name "*.[ch]" | xargs grep -rl $2 | grep -v .svn | xargs perl -pi~ -e "s/$2/$3/"
+}
+
+###############################################################################
+# GDB
+
+# for example which it can execute gdb with full command arguments
+runoffgdb()
+{
+    gdb -ex=run --args msedloader /home/skbacker/office2010/32bit/setup.exe /config z\:/home/skbacker/office2010/32bit/ProPlus.WW/config.xml > $1 2>&1
+}
+
+###############################################################################
+# VirtualBox
+
+# mount shared folder
+makeshared()
+{
+    sudo mount -t vboxsf -o uid=$UID,gid=$(id -g) work ~/share
+}
+
+###############################################################################
+# System
+rmsem ()
+{
+    for i in ` ipcs -s | awk '{ if ($1 != "0x00000000" && $3 == "tibero") print $2  }' `
+    do
+        echo "delete semaphore $i"
+        ipcrm -s $i
+    done
+}
+
+rmshm ()
+{
+    for i in ` ipcs -m | awk '{ if ($1 != "0x00000000" && $3 == "tibero") print $2  }' `
+    do
+        echo "delete shared memory $i"
+        ipcrm -m $i
+    done
+}
+
+# port fowarding 으로 생긴 좀비 connection을 제거한다.
+# 내부망으로 접속해서 실행시킨다. see [ssh port forwarding].
+killzombie ()
+{
+    this_tty=`tty | awk -F / '{print $3"/"$4}'`
+    for i in `who | grep localhost | awk '{print $2}'`
+    do 
+        if [ "$i" != "$this_tty" ]; then
+            kill_pid=`ps -ef | awk '{print $2 " " $6}' | grep -w $i | awk '{print $1}'`
+            echo "killing $kill_pid"
+            kill -9 $kill_pid
+        fi
+    done
+}
+
+attp () 
+{ 
+    TERM=xterm cgdb -- -x $HOME/.gdbinit -p $1
+}
+
+###############################################################################
+# Git and SVN
+
+gitdiff()
+{
+    git diff $1~1 $1
+}
+
+svnmer () 
+{ 
+    dry_run="";
+    if [ ${1:0:2} == "--" ]; then
+        dry_run="--dry-run";
+        let prev_ver=$2-1;
+        curr_ver=$2;
+    else
+        let prev_ver=$1-1;
+        curr_ver=$1;
+    fi;
+    svn merge -r$prev_ver:$curr_ver $HOME/repo/$2 $HOME/repo/$3
+}
+
+svnrevert () 
+{ 
+    let prev_ver=$1-1;
+    curr_ver=$1;
+    svn merge -r$curr_ver:$prev_ver . .
+}
+
+
+###############################################################################
+# LINUX Kernel
+
+alias mklinuxtags=' make V=1 tags ARCH=x86_64; make V=1 TAGS ARCH=x86_64; make V=1 cscope ARCH=x86_64'
+
+###############################################################################
+# FreeBSD Kernel
+alias makedebug='make DEBUG_FLAGS="-g -O0"'
+alias makekernel='makedebug buildkernel KERNCONF=MYKERNEL -j8'
+alias makekernel1='makedebug buildkernel KERNCONF=MYKERNEL'
+alias makekernelfast='makekernel -DKERNFAST'
+alias makekernelfast1='makekernel1 -DKERNFAST'
+
+###############################################################################
+# [LANG, language, character set]
+#
+# ko_KR은 언어를 말하고, UTF-8은 캐릭터셋을 말한다
+# export LANG=ko_KR.UTF-8 #export LANG=ko_KR.EUC-KR #export LC_ALL=ko_KR.EUC-KR
+#
+# 언어 설정은 크게 접속한 터미널(eg. secureCRT, Mac terminal) 설정, LANG, vim
+# encoding 세가지 조합에 의해 결정된다.
+# (사실 아래에서 설명하고 있지만 vim도 command이고 LANG의 설정을 따르므로,
+#  LANG 설정만 제대로 되어 있으면 vimrc encoding 설정은 제거해도 된다)
+#
+# tibero 소스코드는 EUC-KR로 저장되며, 이 소스코드에서 한글을 깨짐없이 보려면
+# 1) 터미널 설정 => EUC-KR, 2) vim => set encoding=euc-kr (or korean) 로
+# 설정하면 된다.
+# 실행되는 command들은 encoding을 위해 LANG 환경변수를 보기
+# 때문에 LANG=ko_KR.UTF-8로 command을 실행하면 utf-8로 결과를 뱉어내지만 터미널
+# 설정이 EUC-KR로 되어 있으면 터미널은 utf-8 결과를 EUC-KR로 인식하므로 한글이
+# 깨지게 된다.
+# 따라서 아래와 같이 LANG을 EUC-KR로 설정해줘야 command 결과도 제대로 보인다.
+# 터미널을 utf-8로 하고 lang도 utf-8로 하면 command는 잘 보인다. 하지만 티베로
+# 소스코드가 euc-kr이므로 깨져 보인다. 
+#
+# 20110413: application에서 LANG 뿐만 아니라 TERM 환경 변수도 보는 것 같다.
+# e.g.) cgdb에서 왼쪽 number 쪽이 깨져서 TERM=xterm으로 하니 그나마 나아졌다.
+###############################################################################
+export LANG=ko_KR.UTF-8
+
+###############################################################################
+# [ssh port forwarding]
+#
+# 1) 내부망에서 외부서버1(61.43.139.222)로 channel을 생성한다.
+#    tibero $ ssh -g -R 20007:localhost:22 skbacker@61.43.139.222
+#    -g 를 주면 외부서버1에서 외부서버2에서도 접속이 가능하도록 listening을 하게
+#    된다.(0.0.0.20007) -g를 빼면 외부서버1에서만 접속이 가능하다.
+#
+# 2) 외부서버1에서 내부망으로 접속한다. (-X는 xmanager처럼 local에 창이 뜸)
+#    $ ssh -X tibero@localhost -p 20007
+#   
+# 3) 외부서버2에서 내부망으로 접속한다.
+#    $ ssh -X tibero@61.43.139.222 -p 20007
+#
+# 외부서버1의 /etc/ssh/sshd_config 에 다음을 추가한다.
+# GatewayPorts yes          # -g 와 대응되며, 외부서버2에서 사용가능하게 함
+# ClientAliveInterval 120   #  이 설정을 해줘야 channel이 끊기지 않게 됨
+###############################################################################
+#alias makeforwarding='ssh -g -R 20007:localhost:22 skbacker@61.43.139.222'
+alias makeforwarding='ssh -g -R 20007:localhost:22 skbacker@180.71.234.92 -p 22000'
+
+makeforwardingc()
+{
+    ssh -R 20007:localhost:22 skbacker@$1 -p 22000
+}
+
+makeforwardingwithip()
+{
+        ssh -g -R 20007:localhost:22 $1 -p 22000
+}
+
+alias makeforwardingwithip2='makeforwardingwithip skbacker@skbacker.com'
+
+###############################################################################
+# [nohup]
+#
+# bash에서는 기본적으로 nohup이 동작한다. 따라서 별도로 nohup을 붙여서 명령어를
+# 실행할 필요는 없고 마지막에 & 만 붙여주면 된다.
+# 하지만 창을 그냥 닫아 버리면 nohup이 동작하지 않는다. 반드시 exit 처럼
+# 정상적으로 parent 창을 닫아야 한다.
+###############################################################################
+
+###############################################################################
+# [rsync source]
+# tibero 소스코드에서 분석할 수 있는 코드만 rsync로 local에 가져오기
+#
+#sync_tibero () {
+#        rsync -rvuzlti --delete --exclude *.o --exclude database --exclude .build
+#            --exclude *.log --exclude *.dbf --exclude *.tdf --exclude instance
+#            --exclude
+#            .svn --exclude tools --exclude config --exclude bin --exclude
+#            docbook --exclude
+#            $1/client --exclude $1/lib --exclude $1/license --exclude tests
+#            --exclude *.jar
+#            --exclude nbsvr tibero@192.168.35.21:$HOME/repo/$1
+#            /Users/skbacker/repo
+#}
+#alias synctrunk='sync_tibero trunk'
+###############################################################################
+
+###############################################################################
+# [git]
+# 
+# revision은 git log할때 나오는 commit 값이며, -1이 없으면 해당 revision 이후
+# 모든 revision을 연속해서 보여준다. -p는 diff를 보여준다. 
+# $ git log -1 -p fs/namei.c revision
+
+alias gitlogdiff='git log --cc -r -c -p --full-diff'
+###############################################################################
+
+###############################################################################
+# [fetchmail]
+# 목적: gmail에서 pop3(회사메일)로부터 메일 가져오는 주기가 너무 길다보니 메일을
+# 늦게 확인하는 문제를 해결하기 위함
+#
+# 1) ~/.fetchmailrc 에 다음 추가
+# defaults
+# proto pop3
+# poll mail.tibero.com
+# port 110
+# auth password
+# user "whiterz@tibero.com" pass "...패쓰워드..."
+# keep  <== fetch한 메일을 남겨둠.
+# smtphost 'mail.tmax.co.kr' smtpname 'seolki.baek@gmail.com'
+# <== fetch한 메일을 gmail로 전달, mail.tmax.co.kr smtp server에 접근 가능해야함
+#
+# 2) 다음 실행하여 주기적으로 fetch하는 deamon 띄움
+# $ fetchmail -s -d 60   ==> 1분마다 fetch
+#
+# 참고로, gmail에서 fetchmail로 검색해볼것
+###############################################################################
+
+###################  EXAMPLES  #######################
+#
+#alias changeip='sudo ifconfig eth0 192.168.17.52 netmask 255.255.255.0 up'
+#alias delgw='sudo route del default gw 192.1.1.1'
+#

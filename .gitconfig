@@ -1,0 +1,9 @@
+[user]
+	name = Seolki Baek
+	email = seolki.baek@gmail.com
+[core]
+	editor = vim
+[merge]
+	tool = vimdiff
+[push]
+	default = simple

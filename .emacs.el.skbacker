@@ -1,0 +1,107 @@
+;; -*- mode: emacs-lisp; coding: `raw-text -*-
+;; by skbacker
+
+;; 모든 .el파일은 /usr/local/share/emacs/23.3/lisp 에 존재함
+;; .el을 참고하거나 관련 함수를 찾고 싶을 때 .el파일을 보면 유용함
+
+;; ctags 서치할 때 case sensitive하게 동작하도록 설정
+(set-default 'case-fold-search nil)
+
+;; background dark 설정
+(set-variable 'frame-background-mode 'dark)
+
+;; stty erase ^H
+(normal-erase-is-backspace-mode 1)
+
+;; tab관련 설정
+;; buffer가 바뀌면 reset되므로 c-mod-hook 사용
+;; 아래 내용을 파일 처음에 추가하면 자동 설정됨
+;; /* -*- Mode: C; tab-width: 4 -*- */
+(add-hook 'c-mode-hook
+  '(lambda () 
+    (setq tab-width 4)            ; vi의 tabstop 
+    (setq c-basic-offset 4)       ; vi의 siftwidth
+    (setq indent-tabs-mode nil))) ; vi의 expandtab
+
+;; c <-> h 전환 key binding
+(add-hook 'c-mode-common-hook
+  (lambda() 
+    (local-set-key  (kbd "C-c o") 'ff-find-other-file)))
+
+;; next, prev tag를 찾을 때 M-], M-[을 사용하기 위한 key mapping
+;; 원래 default는 C-u M-. 과 C-u - M-. 이고 function name이 없어서
+;; fset을 통해 만들어 내는듯
+;;(fset 'find-tag-next "\C-u\256")        ; macro for C-u M-.
+;;(fset 'find-tag-prev "\C-u-\256")       ; macro for C-u - M-.
+;;(global-set-key "\M-]" 'find-tag-next)
+;;(global-set-key "\M-[" 'find-tag-prev)
+
+;; cscope 설정
+;; see /usr/local/share/emacs/site-lisp/xemacs.el
+;;
+;; (2015-02-13)
+;; xcscope.el /usr/local/share/emacs/site-lisp에 있어야 한다. cscope를 설치하면
+;; 기본으로 생성되는데, 없다면(emacs보다 cscope 먼저 설치?) 복사해준다.
+;; (https://github.com/dkogan/xcscope.el)
+(require 'xcscope)
+;; cscope ENTER key binding이 먹히지 않아 dired mode와 유사하게 f, o key로 바꿈
+;; XXX: cscope는 n,p만으로도 other-window 효과가 나므로 의미가 없음 -> 기본키쓰자.
+;;(add-hook 'cscope-list-entry-hook
+;;  '(lambda ()
+;;    (define-key cscope-list-entry-keymap "f" 'cscope-select-entry-one-window)
+;;    (define-key cscope-list-entry-keymap "o" 'cscope-select-entry-other-window)))
+;; (2015-02-13) https://github.com/dkogan/xcscope.el로 바뀌면서 추가해줌
+(cscope-setup)
+
+;; emacs를 실행한 directory의 TAGS 파일을 tags-table-list에 추가
+(let ((curdir-tags (concat default-directory "TAGS")))     
+  (if (file-readable-p curdir-tags) 
+   (setq tags-table-list (cons curdir-tags
+                          tags-table-list))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; etags-select.el
+;;
+;; etags-select.el key binding에서 해당 tags의 소스로 옮겨갈때 ENTER로 되어
+;; 있는데 다른 global key로 ENTER가 다시 binding되어 있어서 안 먹힘
+;; 그래서 dired mode와 유사하게 f, o key로 바꿈
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;load the etags-select.el source code
+(load-file "~/.emacs.d/etags-select.el")
+
+;;binding the key
+(global-set-key "\M-." 'etags-select-find-tag-at-point)
+(global-set-key "\M-?" 'etags-select-find-tag)
+
+;; TAGS 파일을 현재 buffer의 parent를 따라가면서 찾아서 tags-table-list에 추가
+;; etags-select.el 제공 사이트에서 가져옴
+(defun jds-find-tags-file ()
+  "recursively searches each parent directory for a file named 'TAGS' and returns the
+path to that file or nil if a tags file is not found. Returns nil if the buffer is
+not visiting a file"
+  (progn
+      (defun find-tags-file-r (path)
+         "find the tags file from the parent directories"
+         (let* ((parent (file-name-directory path))
+                (possible-tags-file (concat parent "TAGS")))
+           (cond
+             ((file-exists-p possible-tags-file) (throw 'found-it possible-tags-file))
+             ((string= "/TAGS" possible-tags-file) (error "no tags file found"))
+             (t (find-tags-file-r (directory-file-name parent))))))
+
+    (if (buffer-file-name)
+        (catch 'found-it 
+          (find-tags-file-r (buffer-file-name)))
+        (error "etags-select: buffer is not visiting a file"))))
+
+(defun jds-set-tags-file-path ()
+  "calls `jds-find-tags-file' to recursively search up the directory tree to find
+a file named 'TAGS'. If found, set 'tags-table-list' with that path as an argument
+otherwise raises an error."
+  (interactive)
+  (setq tags-table-list (cons (jds-find-tags-file) tags-table-list)))
+
+;; delay search the TAGS file after open the source file
+(add-hook 'emacs-startup-hook 
+    '(lambda () (jds-set-tags-file-path)))
